@@ -1,0 +1,6 @@
+{
+	"server": {
+		"port": 8085,
+		"max_connections": 10
+	}
+}

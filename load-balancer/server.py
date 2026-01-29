@@ -1,16 +1,41 @@
+#!/usr/bin/python3
+
 import socket
+import argparse
+import json
 
-MAX_CONNECTIONS = 10
-s = socket.socket()
-s.bind(('127.0.0.1',8085))
+CONFIG = None
 
-s.listen(MAX_CONNECTIONS)
+def parse_args():
+	parser = argparse.ArgumentParser(description='Majão load balancer')
+	parser.add_argument('--conf', help='Configuration file to be used')
+	return parser.parse_args()
 
-try:
-	conn, address = s.accept()
-	while True:
-		data = conn.recv(200)
-		print(data)
-finally:
-	conn.close()
-	s.close()
+def read_configuration(filename):
+	try:
+		with open(filename) as file:
+			raw_config = file.read()
+			return json.loads(raw_config)
+			
+	except e:
+		print(e)
+
+def manage_connections(config):
+	s = socket.socket()
+	s.bind(('127.0.0.1',config["server"]["port"]))
+	s.listen(config["server"]["max_connections"])
+	try:
+		conn, address = s.accept()
+		while True:
+			data = conn.recv(200)
+			print(data)
+	finally:
+		conn.close()
+		s.close()
+	print("Saindo da gestão de conexões...")
+
+if __name__ == '__main__':
+	args = parse_args()
+	CONFIG = read_configuration(args.conf)
+	manage_connections(CONFIG)
+	print("Encerrando programa...")
