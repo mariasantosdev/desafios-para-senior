@@ -1,11 +1,11 @@
 {
 	"server": {
-		"port": 8085,
+		"port": 8086,
 		"max_connections": 10
 	},
 	"backends": [
 	    {
-	    "port": 8080,
+	    "port": 8085,
 	    "ip": "127.0.0.1"
 	    }
 	]

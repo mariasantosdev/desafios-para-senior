@@ -20,7 +20,7 @@ def read_configuration(filename):
             raw_config = file.read()
             return json.loads(raw_config)
 
-    except e:
+    except Exception as e:
         print(e)
 
 
@@ -28,16 +28,15 @@ def manage_connections(config):
     s = socket.socket()
     s.bind(('127.0.0.1', config["server"]["port"]))
     s.listen(config["server"]["max_connections"])
-    conn = None
-    try:
-        conn, address = s.accept()
-        for i in range(10):
-            data = conn.recv(200)
-            print(data)
-            time.sleep(3)
-    finally:
-        conn.close()
-        s.close()
+    with s:
+        while True:
+            conn, address = s.accept()
+            with conn:
+                while True:
+                    data = conn.recv(200)
+                    print("Dado recebido: ", data)
+                    if not data:
+                        break
     print("Saindo da gestão de conexões...")
 
 

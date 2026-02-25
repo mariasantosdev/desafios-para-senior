@@ -4,9 +4,9 @@ import socket
 import argparse
 import json
 import time
+import threading
 
 CONFIG = None
-
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Majão load balancer')
@@ -19,10 +19,8 @@ def read_configuration(filename):
         with open(filename) as file:
             raw_config = file.read()
             return json.loads(raw_config)
-
-    except e:
+    except Exception as e:
         print(e)
-
 
 def connect_to_backend(backend):
     sock = socket.socket()
@@ -30,28 +28,28 @@ def connect_to_backend(backend):
     # TODO antes de retornar ver se o backend de fato esta alive ou tirar ele do LB
     return sock
 
+def direct_data_to_backend(connection, backend_socket):
+    while True:
+        data = connection.recv(200)
+        if not data:
+            return
+        print("Repassando dados pro backend: ", data)
+        backend_socket.send(data)
 
 def manage_connections(config):
-    for backend in config["backends"]:
-        try:
-            sock = connect_to_backend(backend)
-            for i in range(10):
-                sock.send("Mandando para o backend ".encode())
-                time.sleep(3)
-        finally:
-            sock.close()
+    backend_sockets = [connect_to_backend(backend) for backend in config["backends"]]
 
-    s = socket.socket()
-    s.bind(('127.0.0.1', config["server"]["port"]))
-    s.listen(config["server"]["max_connections"])
-    try:
-        conn, address = s.accept()
+    client_socket = socket.socket()
+    client_socket.bind(('127.0.0.1', config["server"]["port"]))
+    client_socket.listen(config["server"]["max_connections"])
+    with client_socket:
         while True:
-            data = conn.recv(200)
-            print(data)
-    finally:
-        conn.close()
-        s.close()
+            conn, address = client_socket.accept()
+            print("Conexão aceita no endereço ", address)
+            with conn:
+                t = threading.Thread(target=direct_data_to_backend, args=(conn, backend_sockets[0]))
+                t.start()
+                t.join()
     print("Saindo da gestão de conexões...")
 
 
