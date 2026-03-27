@@ -10,3 +10,4 @@ try:
 		sock.send(message.encode())
 finally:
 	sock.close()
+	print("Finalizando conexao...")

@@ -28,16 +28,20 @@ def connect_to_backend(backend):
     # TODO antes de retornar ver se o backend de fato esta alive ou tirar ele do LB
     return sock
 
-def direct_data_to_backend(connection, backend_socket):
-    while True:
-        data = connection.recv(200)
-        if not data:
-            return
-        print("Repassando dados pro backend: ", data)
-        backend_socket.send(data)
+def direct_data_to_backend(connection, backend_socket, index):
+    with connection:
+        while True:
+            data = connection.recv(200)
+            if not data:
+                break
+            print("Repassando dados pro backend: ", data)
+            backend_socket.send(data)
+    print(f"Encerrando conexão {index}...")
 
+# TODO: encerrar todas as conexões em caso de shutdown do LB
 def manage_connections(config):
     backend_sockets = [connect_to_backend(backend) for backend in config["backends"]]
+    threads = []
 
     client_socket = socket.socket()
     client_socket.bind(('127.0.0.1', config["server"]["port"]))
@@ -46,10 +50,11 @@ def manage_connections(config):
         while True:
             conn, address = client_socket.accept()
             print("Conexão aceita no endereço ", address)
-            with conn:
-                t = threading.Thread(target=direct_data_to_backend, args=(conn, backend_sockets[0]))
-                t.start()
-                t.join()
+            t = threading.Thread(target=direct_data_to_backend, args=(conn, backend_sockets[0], len(threads)))
+            t.start()
+            threads.append(t)
+    for thread in threads:
+        thread.join()
     print("Saindo da gestão de conexões...")
 
 
