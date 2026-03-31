@@ -7,6 +7,8 @@ import time
 import threading
 
 CONFIG = None
+BACKEND_CONNECTIONS = []
+CLIENT_CONNECTIONS = []
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Majão load balancer')
@@ -40,7 +42,8 @@ def direct_data_to_backend(connection, backend_socket, index):
 
 # TODO: encerrar todas as conexões em caso de shutdown do LB
 def manage_connections(config):
-    backend_sockets = [connect_to_backend(backend) for backend in config["backends"]]
+    global BACKEND_CONNECTIONS, CLIENT_CONNECTIONS
+    BACKEND_CONNECTIONS = [connect_to_backend(backend) for backend in config["backends"]]
     threads = []
 
     client_socket = socket.socket()
@@ -49,8 +52,9 @@ def manage_connections(config):
     with client_socket:
         while True:
             conn, address = client_socket.accept()
+            CLIENT_CONNECTIONS.append(conn)
             print("Conexão aceita no endereço ", address)
-            t = threading.Thread(target=direct_data_to_backend, args=(conn, backend_sockets[0], len(threads)))
+            t = threading.Thread(target=direct_data_to_backend, args=(conn, BACKEND_CONNECTIONS[0], len(threads)))
             t.start()
             threads.append(t)
     for thread in threads:
@@ -59,7 +63,14 @@ def manage_connections(config):
 
 
 if __name__ == '__main__':
-    args = parse_args()
-    CONFIG = read_configuration(args.conf)
-    manage_connections(CONFIG)
-    print("Encerrando programa...")
+    try:
+        args = parse_args()
+        CONFIG = read_configuration(args.conf)
+        manage_connections(CONFIG)
+    except KeyboardInterrupt as e:
+        for conn in BACKEND_CONNECTIONS:
+            conn.close()
+        for conn in CLIENT_CONNECTIONS:
+            conn.close()
+    finally:
+        print("Encerrando programa...")
