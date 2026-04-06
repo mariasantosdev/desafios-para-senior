@@ -19,7 +19,6 @@ def read_configuration(filename):
         with open(filename) as file:
             raw_config = file.read()
             return json.loads(raw_config)
-
     except Exception as e:
         print(e)
 

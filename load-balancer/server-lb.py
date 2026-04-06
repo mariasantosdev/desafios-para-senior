@@ -9,6 +9,7 @@ import threading
 CONFIG = None
 BACKEND_CONNECTIONS = []
 CLIENT_CONNECTIONS = []
+CLIENT_SOCKET = None
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Majão load balancer')
@@ -45,16 +46,16 @@ def direct_data_to_backend(connection, backend_sockets, index):
 
 # TODO: encerrar todas as conexões em caso de shutdown do LB
 def manage_connections(config):
-    global BACKEND_CONNECTIONS, CLIENT_CONNECTIONS
+    global BACKEND_CONNECTIONS, CLIENT_CONNECTIONS, CLIENT_SOCKET
     BACKEND_CONNECTIONS = [connect_to_backend(backend) for backend in config["backends"]]
     threads = []
 
-    client_socket = socket.socket()
-    client_socket.bind(('127.0.0.1', config["server"]["port"]))
-    client_socket.listen(config["server"]["max_connections"])
-    with client_socket:
+    CLIENT_SOCKET = socket.socket()
+    CLIENT_SOCKET.bind(('127.0.0.1', config["server"]["port"]))
+    CLIENT_SOCKET.listen(config["server"]["max_connections"])
+    with CLIENT_SOCKET:
         while True:
-            conn, address = client_socket.accept()
+            conn, address = CLIENT_SOCKET.accept()
             CLIENT_CONNECTIONS.append(conn)
             print("Conexão aceita no endereço ", address)
             t = threading.Thread(target=direct_data_to_backend, args=(conn, BACKEND_CONNECTIONS, len(threads)))
@@ -64,16 +65,21 @@ def manage_connections(config):
         thread.join()
     print("Saindo da gestão de conexões...")
 
-
+# TODO: gerenciar corretamente as conexões em caso de shutdown do LB, ele tá ficando preso e não encerra de vdd
 if __name__ == '__main__':
     try:
         args = parse_args()
         CONFIG = read_configuration(args.conf)
         manage_connections(CONFIG)
     except KeyboardInterrupt as e:
+        print("Recebi sinal de encerramento de programa. Encerrando...")
+    finally:
+        print("Fechando conexões com backends...")
         for conn in BACKEND_CONNECTIONS:
             conn.close()
+        print("Fechando conexões com clientes...")
         for conn in CLIENT_CONNECTIONS:
             conn.close()
-    finally:
-        print("Encerrando programa...")
+        print("Fechando socket do cliente...")
+        CLIENT_SOCKET.close()
+        print("Tchau!")
