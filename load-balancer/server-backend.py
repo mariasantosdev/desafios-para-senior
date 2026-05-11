@@ -4,6 +4,7 @@ import socket
 import argparse
 import json
 import time
+from Data import Data
 
 CONFIG = None
 
@@ -32,8 +33,8 @@ def manage_connections(config):
             conn, address = s.accept()
             with conn:
                 while True:
-                    data = conn.recv(200)
-                    print("Dado recebido: ", data)
+                    data = Data(conn.recv(200))
+                    print("Dado recebido: ", data.payload)
                     if not data:
                         break
     print("Saindo da gestão de conexões...")

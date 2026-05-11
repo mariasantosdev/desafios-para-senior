@@ -6,6 +6,8 @@ import json
 import time
 import threading
 
+from Data import Data
+
 CONFIG = None
 BACKEND_CONNECTIONS = []
 CLIENT_CONNECTIONS = []
@@ -36,11 +38,11 @@ def direct_data_to_backend(connection, backend_sockets, index):
     num_backends = len(backend_sockets)
     with connection:
         while True:
-            data = connection.recv(200)
-            if not data:
+            data = Data(connection.recv(200))
+            if data.is_empty():
                 break
-            print(f"Repassando dados pro backend {backend_index}: ", data)
-            backend_sockets[backend_index].send(data)
+            print(f"Repassando dados pro backend {backend_index}: ", data.payload)
+            backend_sockets[backend_index].send(data.full_data())
             backend_index = (backend_index + 1) % num_backends
     print(f"Encerrando conexão {index}...")
 
